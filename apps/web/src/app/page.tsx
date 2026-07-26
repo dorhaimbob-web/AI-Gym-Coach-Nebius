@@ -1,4 +1,4 @@
-import { palette } from "@gymcoach/shared";
+import { palette, typography } from "@gymcoach/shared";
 
 export default function Home() {
   const t = palette.light;
@@ -16,7 +16,14 @@ export default function Home() {
           '-apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
       }}
     >
-      <h1 style={{ fontWeight: 800, letterSpacing: "-0.02em" }}>GymCoach AI</h1>
+      <h1
+        style={{
+          fontWeight: Number(typography.screenTitle.weight),
+          letterSpacing: typography.screenTitle.letterSpacing,
+        }}
+      >
+        GymCoach AI
+      </h1>
       <p style={{ color: t.inkSoft, maxWidth: "40ch", textAlign: "center" }}>
         The personal trainer that remembers every rep, every set, every kg.
       </p>

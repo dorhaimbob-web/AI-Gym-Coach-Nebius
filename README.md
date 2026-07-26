@@ -30,7 +30,10 @@ pnpm --filter @gymcoach/mobile start # Expo dev server
 
 - Clients never call the LLM directly — everything goes through the agent
   service (usage caps, prompt assembly, kill switch live there).
-- All client DB access is row-scoped via RLS; mutations go through Edge
-  Functions with service_role.
+- All client DB access is row-scoped via RLS. Mutations go through Edge
+  Functions with service_role, with two deliberate carve-outs: a user may
+  bootstrap/update their own profile row (locale only, column-granted) and
+  edit their own coach persona. Consent fields and everything else are
+  server-written only.
 - The active workout session must work offline; sets queue locally and sync.
 - Coach replies are single complete messages, generated in the user's language.

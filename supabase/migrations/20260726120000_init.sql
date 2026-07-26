@@ -33,6 +33,10 @@ create table public.coach_profiles (
 );
 
 -- ------------------------------------------------------- training_plans
+-- One row per workout-type ("Workout A", "Workout B", ...). A user has
+-- SEVERAL active rows at once — one per workout-type in the current
+-- program. Pasting a new program archives all prior rows; there is
+-- deliberately no unique-active constraint here.
 create table public.training_plans (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users (id) on delete cascade,
@@ -84,8 +88,9 @@ create table public.set_logs (
   reps int not null check (reps between 0 and 200),
   note text,
   created_at timestamptz not null default now(),
-  -- Idempotency for offline-sync retries (GYM-17): replaying the same
-  -- confirmed set is a conflict, not a duplicate row.
+  -- Idempotency substrate for offline-sync retries (GYM-17): the write
+  -- path must INSERT ... ON CONFLICT DO NOTHING so a replayed confirmed
+  -- set is a silent no-op, never a duplicate row.
   unique (session_id, exercise_id, set_no)
 );
 
@@ -129,7 +134,12 @@ alter table public.usage_ledger enable row level security;
 -- Anonymous clients have no business here at all.
 revoke all on all tables in schema public from anon;
 
--- users: read + bootstrap + limited self-update.
+-- users: read + bootstrap + locale-only self-update.
+-- RLS scopes rows; column-level grants scope columns. Clients may create
+-- their own row (id + locale) and later change locale — nothing else.
+-- terms_accepted_at / terms_version / apple_sub are written exclusively by
+-- Edge Functions (service_role), so the consent audit trail can never be
+-- forged or edited from a client.
 create policy users_select_own on public.users
   for select to authenticated using (id = (select auth.uid()));
 create policy users_insert_own on public.users
@@ -138,6 +148,10 @@ create policy users_update_own on public.users
   for update to authenticated
   using (id = (select auth.uid()))
   with check (id = (select auth.uid()));
+
+revoke insert, update on public.users from authenticated;
+grant insert (id, locale) on public.users to authenticated;
+grant update (locale) on public.users to authenticated;
 
 -- coach_profiles: the one fully user-editable table (persona config).
 -- The non-negotiable safety layer is injected server-side and never lives here.

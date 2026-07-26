@@ -1,8 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, useColorScheme } from 'react-native';
-import { palette, spacing, type as typeScale } from '@gymcoach/shared';
+import { palette, spacing, typography } from '@gymcoach/shared';
 
-export default function App() {
+export default function Home() {
   const scheme = useColorScheme();
   const theme = palette[scheme === 'dark' ? 'dark' : 'light'];
 
@@ -11,9 +11,9 @@ export default function App() {
       <Text
         style={{
           color: theme.ink,
-          fontSize: typeScale.screenTitle.size,
-          fontWeight: '800',
-          letterSpacing: typeScale.screenTitle.letterSpacing,
+          fontSize: typography.screenTitle.size,
+          fontWeight: typography.screenTitle.weight,
+          letterSpacing: typography.screenTitle.letterSpacing,
         }}
       >
         GymCoach AI

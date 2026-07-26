@@ -52,7 +52,7 @@ export const radius = {
   pill: 24,
 } as const;
 
-export const type = {
+export const typography = {
   /** Tight, confident chrome (X-like). */
   screenTitle: { size: 26, weight: "800", letterSpacing: -0.5 },
   navLabel: { size: 13, weight: "700", letterSpacing: 0.3 },

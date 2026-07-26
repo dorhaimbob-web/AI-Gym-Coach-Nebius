@@ -1,5 +1,14 @@
 /** Domain types mirroring the Postgres schema (supabase/migrations). */
 
+export interface User {
+  id: string;
+  appleSub: string | null;
+  locale: string;
+  termsAcceptedAt: string | null;
+  termsVersion: string | null;
+  createdAt: string;
+}
+
 export type PlanStatus = "active" | "archived";
 export type SessionStatus = "in_progress" | "completed" | "abandoned";
 export type SessionSource = "live" | "imported";
@@ -74,5 +83,6 @@ export interface UsageLedgerEntry {
   period: string; // "YYYY-MM"
   tokensInput: number;
   tokensOutput: number;
+  /** Fractional cents (numeric(10,4) in SQL) — a Flash-Lite session costs ~0.2¢. */
   costCents: number;
 }
