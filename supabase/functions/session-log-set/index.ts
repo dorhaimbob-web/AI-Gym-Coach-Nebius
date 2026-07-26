@@ -42,13 +42,26 @@ Deno.serve(async (req) => {
   // Ownership: the session must belong to the caller and still be open.
   const { data: session } = await db
     .from("workout_sessions")
-    .select("id")
+    .select("id, plan_id")
     .eq("id", body.sessionId)
     .eq("user_id", user.id)
     .eq("status", "in_progress")
     .maybeSingle();
   if (!session) return json(404, { error: "session_not_found" });
 
+  // The exercise must belong to this session's plan — otherwise a caller
+  // could log sets against (and later read back) another user's exercise.
+  const { data: exercise } = await db
+    .from("exercises")
+    .select("id")
+    .eq("id", body.exerciseId)
+    .eq("plan_id", session.plan_id)
+    .maybeSingle();
+  if (!exercise) return json(404, { error: "exercise_not_found" });
+
+  // Last write wins: an identical replay from the offline queue is a
+  // harmless overwrite; a re-send with corrected weight/reps actually
+  // lands instead of being silently dropped.
   const { error } = await db.from("set_logs").upsert(
     {
       session_id: body.sessionId,
@@ -58,7 +71,7 @@ Deno.serve(async (req) => {
       reps: body.reps,
       note: body.note ?? null,
     },
-    { onConflict: "session_id,exercise_id,set_no", ignoreDuplicates: true },
+    { onConflict: "session_id,exercise_id,set_no" },
   );
   if (error) return json(500, { error: "write_failed" });
 

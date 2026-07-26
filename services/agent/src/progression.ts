@@ -52,10 +52,12 @@ export function suggestTargets(exercise: Exercise, lastLogs: SetLog[]): Targets 
     };
   }
 
-  // Same weight, nudge each set toward one more rep, capped at the range top.
+  // Same weight, nudge each set toward one more rep — clamped into the
+  // range, so a set that fell below the floor targets the floor, not
+  // another out-of-range number.
   const targetReps = Array.from({ length: exercise.sets }, (_, i) => {
     const prev = topWeightSets[i]?.reps ?? min;
-    return Math.min(prev + 1, max);
+    return Math.min(Math.max(prev + 1, min), max);
   });
 
   const anyBelow = topWeightSets.some((l) => l.reps < max);

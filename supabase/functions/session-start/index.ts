@@ -2,16 +2,10 @@ import {
   admin,
   allowRate,
   budgetRemaining,
-  callAgent,
   corsHeaders,
-  exerciseToAgent,
   getUser,
   json,
-  lastLogsForExercise,
-  notesForExercise,
-  profileToAgent,
-  recordUsage,
-  setLogsToAgent,
+  runExerciseTurn,
 } from "../_shared/mod.ts";
 
 /**
@@ -19,6 +13,9 @@ import {
  *
  * Budget is checked HERE and only here — a session already running is
  * never cut off mid-set (System Design §7).
+ *
+ * Idempotent against retries: an open session on the same plan is reused,
+ * so a client that got a 503 mid-start doesn't strand orphan sessions.
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -68,42 +65,28 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!firstExercise) return json(409, { error: "plan_has_no_exercises" });
 
-  const { data: profileRow } = await db
-    .from("coach_profiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!profileRow) return json(409, { error: "no_coach_profile" });
-
-  const { data: session, error: sessionError } = await db
+  // Reuse a recent open session on this plan instead of creating a twin.
+  const sixHoursAgo = new Date(Date.now() - 6 * 3600_000).toISOString();
+  const { data: existing } = await db
     .from("workout_sessions")
-    .insert({ user_id: user.id, plan_id: plan.id, source: "live" })
     .select("id")
-    .single();
-  if (sessionError || !session) return json(500, { error: "session_create_failed" });
+    .eq("user_id", user.id)
+    .eq("plan_id", plan.id)
+    .eq("status", "in_progress")
+    .gte("started_at", sixHoursAgo)
+    .maybeSingle();
 
-  const lastLogs = await lastLogsForExercise(db, user.id, firstExercise.id);
-  const notes = await notesForExercise(db, user.id, firstExercise.id);
+  let sessionId = existing?.id as string | undefined;
+  if (!sessionId) {
+    const { data: session, error: sessionError } = await db
+      .from("workout_sessions")
+      .insert({ user_id: user.id, plan_id: plan.id, source: "live" })
+      .select("id")
+      .single();
+    if (sessionError || !session) return json(500, { error: "session_create_failed" });
+    sessionId = session.id;
+  }
 
-  const agentRes = await callAgent({
-    userId: user.id,
-    planId: plan.id,
-    profile: profileToAgent(profileRow),
-    exercise: exerciseToAgent(firstExercise),
-    lastLogs: setLogsToAgent(lastLogs),
-    notes,
-  });
-  if (!agentRes.ok) return json(503, { error: "coach_unavailable" });
-
-  const turn = await agentRes.json();
-  await recordUsage(db, user.id, turn.usage);
-
-  return json(200, {
-    sessionId: session.id,
-    exerciseId: firstExercise.id,
-    message: turn.message,
-    suggestedWeightKg: turn.suggestedWeightKg,
-    targetReps: turn.targetReps,
-    degraded: turn.degraded,
-  });
+  const turn = await runExerciseTurn(db, user.id, plan.id, firstExercise);
+  return json(turn.status, { sessionId, ...turn.body });
 });

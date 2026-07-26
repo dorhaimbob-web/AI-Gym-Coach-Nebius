@@ -21,6 +21,7 @@ create or replace function public.bump_rate(
   p_window_start timestamptz
 ) returns int
 language sql
+set search_path = public
 as $$
   insert into public.rate_limits (user_id, bucket, window_start, count)
   values (p_user_id, p_bucket, p_window_start, 1)
@@ -29,7 +30,10 @@ as $$
   returning count;
 $$;
 
-revoke execute on function public.bump_rate from anon, authenticated;
+-- Postgres grants EXECUTE to PUBLIC on new functions by default; revoking
+-- only from anon/authenticated leaves that inherited grant in place, so a
+-- client could still call these via PostgREST RPC with a victim's uuid.
+revoke execute on function public.bump_rate from public, anon, authenticated;
 
 -- Atomic per-month usage accumulation (upsert-increment).
 create or replace function public.record_usage(
@@ -40,6 +44,7 @@ create or replace function public.record_usage(
   p_cost_cents numeric
 ) returns void
 language sql
+set search_path = public
 as $$
   insert into public.usage_ledger (user_id, period, tokens_input, tokens_output, cost_cents)
   values (p_user_id, p_period, p_tokens_input, p_tokens_output, p_cost_cents)
@@ -50,4 +55,4 @@ as $$
     cost_cents = public.usage_ledger.cost_cents + excluded.cost_cents;
 $$;
 
-revoke execute on function public.record_usage from anon, authenticated;
+revoke execute on function public.record_usage from public, anon, authenticated;

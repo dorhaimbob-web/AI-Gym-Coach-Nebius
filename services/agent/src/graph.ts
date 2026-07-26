@@ -16,6 +16,8 @@ import { composeWithLlm, type LlmUsage } from "./llm.js";
 export interface TurnInput {
   userId: string;
   planId: string;
+  planName: string;
+  planExercises: Array<{ name: string; orderIndex: number }>;
   profile: CoachProfile;
   exercise: Exercise;
   lastLogs: SetLog[];
@@ -46,7 +48,13 @@ async function composeNode(state: GraphState): Promise<Partial<GraphState>> {
   const { input } = state;
   const targets = state.targets!;
   const systemPrompt = buildSystemPrompt(input.profile);
-  const turnPrompt = buildTurnPrompt(input.exercise, input.lastLogs, targets, input.notes);
+  const turnPrompt = buildTurnPrompt(
+    input.exercise,
+    input.lastLogs,
+    targets,
+    input.notes,
+    { planName: input.planName, planExercises: input.planExercises },
+  );
 
   const llmReply = await composeWithLlm(systemPrompt, turnPrompt);
   if (llmReply) {

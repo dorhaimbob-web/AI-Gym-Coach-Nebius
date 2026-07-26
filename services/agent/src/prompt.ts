@@ -61,8 +61,18 @@ export function buildTurnPrompt(
   lastLogs: SetLog[],
   targets: Targets,
   notes: string[],
+  plan?: { planName: string; planExercises: Array<{ name: string; orderIndex: number }> },
 ): string {
-  const lines = [
+  const lines: string[] = [];
+  if (plan && plan.planExercises.length > 0) {
+    lines.push(
+      `Today's workout: ${plan.planName || "current plan"} — ${plan.planExercises
+        .map((e) => `${e.orderIndex}. ${e.name}`)
+        .join(", ")}.`,
+      "",
+    );
+  }
+  lines.push(
     `Current exercise: ${exercise.name}`,
     `Structure: ${exercise.sets} work sets, ${exercise.repRange} reps, rest ${exercise.restSec}s, intensity: ${exercise.intensity}.`,
     exercise.warmup ? `Warm-up: ${exercise.warmup}` : "No warm-up for this exercise.",
@@ -73,7 +83,7 @@ export function buildTurnPrompt(
     targets.reason === "baseline"
       ? "This is the first session for this exercise: help the user find working weights, focus on technique."
       : `Computed target for today (already validated, present it as the goal): ${targets.suggestedWeightKg}kg, sets of ${targets.targetReps?.join(", ")} reps (${targets.reason === "increase_weight" ? "weight went up — reset reps toward the bottom of the range" : "same weight, beat last time's reps"}).`,
-  ];
+  );
   if (notes.length > 0) {
     lines.push("", "Saved notes about this exercise:", ...notes.map((n) => `- ${n}`));
   }

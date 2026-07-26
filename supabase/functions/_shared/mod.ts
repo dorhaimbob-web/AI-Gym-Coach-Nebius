@@ -65,7 +65,13 @@ export function currentPeriod(): string {
   return new Date().toISOString().slice(0, 7); // YYYY-MM
 }
 
-/** GYM-21: monthly budget check — done once per session start. */
+/**
+ * GYM-21: monthly budget check — done once per session start.
+ * Units are CENTS: the default of 3¢/user/month ≈ 12-15 Flash-Lite
+ * sessions at ~0.2¢ each. Deliberately advisory-precision: concurrent
+ * starts within one rate-limit window can overshoot by a few sessions,
+ * which at these prices is fractions of a cent.
+ */
 export async function budgetRemaining(
   db: SupabaseClient,
   userId: string,
@@ -86,13 +92,17 @@ export async function recordUsage(
   userId: string,
   usage: { tokensInput: number; tokensOutput: number; costCents: number },
 ): Promise<void> {
-  await db.rpc("record_usage", {
+  const { error } = await db.rpc("record_usage", {
     p_user_id: userId,
     p_period: currentPeriod(),
     p_tokens_input: usage.tokensInput,
     p_tokens_output: usage.tokensOutput,
     p_cost_cents: usage.costCents,
   });
+  if (error) {
+    // A silent failure here is a budget leak — surface it in function logs.
+    console.error("record_usage failed", { userId, error: error.message });
+  }
 }
 
 /** Call the agent service. GYM-56's kill switch lives on the agent side. */
@@ -152,7 +162,12 @@ export function setLogsToAgent(rows: Record<string, unknown>[]) {
   }));
 }
 
-/** Last completed-session logs for one exercise (the "last time" memory). */
+/**
+ * Last completed-session logs for one exercise (the "last time" memory).
+ * Ordered by when the session was TRAINED (started_at), not when its rows
+ * synced — an offline Monday session synced on Thursday must not shadow
+ * Wednesday's session.
+ */
 export async function lastLogsForExercise(
   db: SupabaseClient,
   userId: string,
@@ -164,7 +179,10 @@ export async function lastLogsForExercise(
     .eq("exercise_id", exerciseId)
     .eq("workout_sessions.user_id", userId)
     .eq("workout_sessions.status", "completed")
-    .order("created_at", { ascending: false })
+    .order("started_at", {
+      referencedTable: "workout_sessions",
+      ascending: false,
+    })
     .limit(1)
     .maybeSingle();
   if (!lastSession) return [];
@@ -177,7 +195,10 @@ export async function lastLogsForExercise(
   return data ?? [];
 }
 
-/** Saved coach notes for this exercise (GYM-22 read side). */
+/**
+ * Saved coach notes for this exercise (GYM-22 read side) — includes
+ * general notes (exercise_id is null), which apply to every exercise.
+ */
 export async function notesForExercise(
   db: SupabaseClient,
   userId: string,
@@ -187,8 +208,67 @@ export async function notesForExercise(
     .from("coach_notes")
     .select("note")
     .eq("user_id", userId)
-    .eq("exercise_id", exerciseId)
+    .or(`exercise_id.eq.${exerciseId},exercise_id.is.null`)
     .order("created_at", { ascending: false })
     .limit(10);
   return (data ?? []).map((r) => r.note as string);
+}
+
+/**
+ * Shared core of session-start and coach-turn: gather context for one
+ * exercise, run the agent, record usage, shape the response.
+ */
+export async function runExerciseTurn(
+  db: SupabaseClient,
+  userId: string,
+  planId: string,
+  exercise: Record<string, unknown>,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const { data: profileRow } = await db
+    .from("coach_profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!profileRow) return { status: 409, body: { error: "no_coach_profile" } };
+
+  // Plan context (GYM-20): the coach should know the whole workout, not
+  // just the current exercise.
+  const [{ data: plan }, { data: planExercises }] = await Promise.all([
+    db.from("training_plans").select("name").eq("id", planId)
+      .eq("user_id", userId).maybeSingle(),
+    db.from("exercises").select("name, order_index").eq("plan_id", planId)
+      .order("order_index", { ascending: true }),
+  ]);
+
+  const lastLogs = await lastLogsForExercise(db, userId, exercise.id as string);
+  const notes = await notesForExercise(db, userId, exercise.id as string);
+
+  const agentRes = await callAgent({
+    userId,
+    planId,
+    planName: plan?.name ?? "",
+    planExercises: (planExercises ?? []).map((e) => ({
+      name: e.name,
+      orderIndex: e.order_index,
+    })),
+    profile: profileToAgent(profileRow),
+    exercise: exerciseToAgent(exercise),
+    lastLogs: setLogsToAgent(lastLogs),
+    notes,
+  });
+  if (!agentRes.ok) return { status: 503, body: { error: "coach_unavailable" } };
+
+  const turn = await agentRes.json();
+  await recordUsage(db, userId, turn.usage);
+
+  return {
+    status: 200,
+    body: {
+      exerciseId: exercise.id,
+      message: turn.message,
+      suggestedWeightKg: turn.suggestedWeightKg,
+      targetReps: turn.targetReps,
+      degraded: turn.degraded,
+    },
+  };
 }

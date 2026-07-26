@@ -54,6 +54,11 @@ test("sets below ceiling -> same weight, +1 rep, capped at ceiling", () => {
   assert.deepEqual(t.targetReps, [10, 9, 8]);
 });
 
+test("set below range floor targets the floor, not floor-minus-something", () => {
+  const t = suggestTargets(exercise, logs([[50, 9], [50, 6], [50, 4]]));
+  assert.deepEqual(t.targetReps, [10, 7, 6]);
+});
+
 test("inverted pyramid (mixed weights): progression judged at top weight", () => {
   // 3 work sets but only 2 at the top weight -> not "all at ceiling"
   const t = suggestTargets(exercise, logs([[50, 10], [50, 10], [45, 10]]));

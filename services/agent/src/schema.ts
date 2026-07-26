@@ -40,6 +40,11 @@ export const coachProfileSchema = z.object({
 export const turnInputSchema = z.object({
   userId: z.string(),
   planId: z.string(),
+  planName: z.string().max(200).default(""),
+  planExercises: z
+    .array(z.object({ name: z.string(), orderIndex: z.number().int() }))
+    .max(50)
+    .default([]),
   profile: coachProfileSchema,
   exercise: exerciseSchema,
   lastLogs: z.array(setLogSchema).max(200),
