@@ -69,38 +69,51 @@ Deno.serve(async (req) => {
       return json(400, { error: "invalid_input" });
     }
 
+    // Commit is a user-confirmed one-shot; a retried partial failure can
+    // duplicate sessions — acceptable for MVP, the user sees and can
+    // delete via account data. Logs are grouped by the plan each exercise
+    // actually belongs to, so a mixed paste never mis-attributes.
     let imported = 0;
     for (const s of sessions) {
       const matched = (s.logs ?? []).filter((l) => exerciseByName.has(l.exerciseName));
       if (matched.length === 0) continue;
-      const planId = exerciseByName.get(matched[0].exerciseName)!.planId;
-      const startedAt = s.date && !Number.isNaN(Date.parse(s.date))
-        ? new Date(s.date).toISOString()
-        : new Date().toISOString();
-      const { data: session, error } = await db
-        .from("workout_sessions")
-        .insert({
-          user_id: user.id,
-          plan_id: planId,
-          source: "imported",
-          status: "completed",
-          started_at: startedAt,
-          completed_at: startedAt,
-        })
-        .select("id")
-        .single();
-      if (error || !session) return json(500, { error: "write_failed" });
-      const { error: logError } = await db.from("set_logs").insert(
-        matched.map((l) => ({
-          session_id: session.id,
-          exercise_id: exerciseByName.get(l.exerciseName)!.id,
-          set_no: l.setNo,
-          weight_kg: l.weightKg,
-          reps: l.reps,
-        })),
-      );
-      if (logError) return json(500, { error: "write_failed" });
-      imported++;
+      const byPlan = new Map<string, typeof matched>();
+      for (const l of matched) {
+        const planId = exerciseByName.get(l.exerciseName)!.planId;
+        byPlan.set(planId, [...(byPlan.get(planId) ?? []), l]);
+      }
+      // Only ISO-like dates are trusted; anything else imports as "today"
+      // and is surfaced to the user in the parse preview beforehand.
+      const parsedDate = s.date && /^\d{4}-\d{2}-\d{2}/.test(s.date) ? Date.parse(s.date) : NaN;
+      const startedAt = Number.isNaN(parsedDate)
+        ? new Date().toISOString()
+        : new Date(parsedDate).toISOString();
+      for (const [planId, logs] of byPlan) {
+        const { data: session, error } = await db
+          .from("workout_sessions")
+          .insert({
+            user_id: user.id,
+            plan_id: planId,
+            source: "imported",
+            status: "completed",
+            started_at: startedAt,
+            completed_at: startedAt,
+          })
+          .select("id")
+          .single();
+        if (error || !session) return json(500, { error: "write_failed" });
+        const { error: logError } = await db.from("set_logs").insert(
+          logs.map((l) => ({
+            session_id: session.id,
+            exercise_id: exerciseByName.get(l.exerciseName)!.id,
+            set_no: l.setNo,
+            weight_kg: l.weightKg,
+            reps: l.reps,
+          })),
+        );
+        if (logError) return json(500, { error: "write_failed" });
+        imported++;
+      }
     }
     return json(200, { imported });
   }

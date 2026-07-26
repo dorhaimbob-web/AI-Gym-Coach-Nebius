@@ -105,10 +105,12 @@ export default function Chat() {
       );
       const lines = res.exercises.map((e) => `${e.name}: ${e.sets.join(', ')}`).join('\n');
       push('coach', `${t('workoutSummary')}\n${lines}`);
+      setSessionId(null);
     } catch (e) {
+      // Keep the session so "finish" can be retried once back online —
+      // clearing it here would strand an in_progress session server-side.
       coachError(e);
     } finally {
-      setSessionId(null);
       setBusy(false);
     }
   }

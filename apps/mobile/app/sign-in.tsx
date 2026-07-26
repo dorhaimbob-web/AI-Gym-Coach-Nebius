@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View,
 } from 'react-native';
@@ -16,7 +16,15 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
 
-  AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => {});
+  useEffect(() => {
+    let mounted = true;
+    AppleAuthentication.isAvailableAsync()
+      .then((v) => mounted && setAppleAvailable(v))
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function afterAuth() {
     router.replace('/');

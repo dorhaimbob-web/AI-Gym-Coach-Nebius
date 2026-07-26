@@ -21,7 +21,7 @@ export default function Entry() {
       if (cancelled) return;
       if (!user) return router.replace('/sign-in');
 
-      const [{ data: userRow }, { data: profile }, { count }] = await Promise.all([
+      const [userRes, profileRes, planRes] = await Promise.all([
         supabase.from('users').select('terms_accepted_at').eq('id', user.id).maybeSingle(),
         supabase.from('coach_profiles').select('user_id').eq('user_id', user.id).maybeSingle(),
         supabase
@@ -30,9 +30,15 @@ export default function Entry() {
           .eq('status', 'active'),
       ]);
       if (cancelled) return;
-      if (!userRow?.terms_accepted_at) return router.replace('/consent');
-      if (!count) return router.replace('/onboarding-plan');
-      if (!profile) return router.replace('/onboarding-persona');
+      // A transient query error must not silently re-route an onboarded
+      // user backwards; consent is the one safe (and legally conservative)
+      // fallback, and accept-terms is idempotent.
+      if (userRes.error || profileRes.error || planRes.error) {
+        return router.replace('/consent');
+      }
+      if (!userRes.data?.terms_accepted_at) return router.replace('/consent');
+      if (!planRes.count) return router.replace('/onboarding-plan');
+      if (!profileRes.data) return router.replace('/onboarding-persona');
       router.replace('/(tabs)');
     })().finally(() => !cancelled && setChecking(false));
     return () => {

@@ -96,7 +96,7 @@ export async function parseSummaryText(
   const res = await model.invoke([
     [
       "system",
-      `You convert pasted workout-summary text (any language) into JSON. Reply with ONLY valid JSON matching: {"sessions":[{"date":string|null,"planName":string|null,"logs":[{"exerciseName":string,"setNo":number,"weightKg":number,"reps":number}]}]}. When an exercise clearly matches one of these known exercise names, use the known name EXACTLY: ${JSON.stringify(knownExercises)}. Otherwise keep the original name.`,
+      `You convert pasted workout-summary text (any language) into JSON. Reply with ONLY valid JSON matching: {"sessions":[{"date":string|null,"planName":string|null,"logs":[{"exerciseName":string,"setNo":number,"weightKg":number,"reps":number}]}]}. "date" must be ISO format YYYY-MM-DD (convert from any format, e.g. 23.07.2026 -> "2026-07-23") or null if absent. When an exercise clearly matches one of these known exercise names, use the known name EXACTLY: ${JSON.stringify(knownExercises)}. Otherwise keep the original name.`,
     ],
     ["human", text],
   ]);
