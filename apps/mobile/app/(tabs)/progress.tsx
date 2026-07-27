@@ -1,5 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import {
+  Alert, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, Text,
+  TextInput, TouchableWithoutFeedback, View,
+} from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../src/lib/supabase';
@@ -126,7 +129,12 @@ export default function Progress() {
       />
 
       <Modal visible={importOpen} animationType="slide" onRequestClose={() => setImportOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: theme.bg, padding: spacing.lg }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, backgroundColor: theme.bg }}
+        >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={{ flex: 1, padding: spacing.lg }}>
           <Text style={{ color: theme.ink, fontSize: 18, fontWeight: '800', textAlign: 'right', marginBottom: spacing.md }}>
             {t('importHistory')}
           </Text>
@@ -144,7 +152,7 @@ export default function Progress() {
           {!importPreview ? (
             <Pressable
               disabled={busy || importText.length < 10}
-              onPress={importParse}
+              onPress={() => { Keyboard.dismiss(); importParse(); }}
               style={{ backgroundColor: theme.accent, padding: 14, borderRadius: radius.pill, alignItems: 'center', marginTop: spacing.md }}
             >
               <Text style={{ color: theme.onAccent, fontWeight: '700' }}>
@@ -166,6 +174,8 @@ export default function Progress() {
             <Text style={{ color: theme.inkSoft }}>{t('cancel')}</Text>
           </Pressable>
         </View>
+        </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

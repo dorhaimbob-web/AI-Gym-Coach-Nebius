@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text,
+  TextInput, TouchableWithoutFeedback, View,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { callFn } from '../src/lib/api';
@@ -44,7 +47,12 @@ export default function OnboardingPlan() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg, padding: spacing.lg }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1, backgroundColor: theme.bg }}
+    >
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <View style={{ flex: 1, padding: spacing.lg }}>
       <Text style={{ color: theme.inkSoft, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>
         {t('planStep')}
       </Text>
@@ -63,6 +71,7 @@ export default function OnboardingPlan() {
             placeholderTextColor={theme.inkSoft}
             value={text}
             onChangeText={setText}
+            blurOnSubmit={false}
             style={{
               flex: 1, backgroundColor: theme.surface, borderRadius: radius.card,
               padding: spacing.md, color: theme.ink, textAlign: 'right', textAlignVertical: 'top',
@@ -70,7 +79,10 @@ export default function OnboardingPlan() {
           />
           <Pressable
             disabled={busy || text.length < 10}
-            onPress={parse}
+            onPress={() => {
+              Keyboard.dismiss();
+              parse();
+            }}
             style={{
               backgroundColor: text.length >= 10 ? theme.accent : theme.rule,
               padding: 14, borderRadius: radius.pill, alignItems: 'center', marginTop: spacing.md,
@@ -114,5 +126,7 @@ export default function OnboardingPlan() {
         </>
       )}
     </View>
+    </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
