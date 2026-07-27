@@ -10,9 +10,7 @@ import { callFn } from '../../src/lib/api';
 import { DismissKeyboardView } from '../../src/components/DismissKeyboardView';
 import { LineChart } from '../../src/components/LineChart';
 import { Screen } from '../../src/components/Screen';
-import { useTheme, spacing, radius, TAB_BAR_HEIGHT, TAB_BAR_BOTTOM_MARGIN } from '../../src/theme';
-
-const TAB_BAR_CLEARANCE = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_MARGIN + spacing.sm;
+import { useTheme, spacing, radius, TAB_BAR_CLEARANCE } from '../../src/theme';
 
 interface SessionRow {
   id: string; started_at: string; source: string;

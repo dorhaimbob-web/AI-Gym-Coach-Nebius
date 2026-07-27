@@ -5,9 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../../src/lib/supabase';
 import { callFn } from '../../src/lib/api';
 import { Screen } from '../../src/components/Screen';
-import { useTheme, spacing, radius, TAB_BAR_HEIGHT, TAB_BAR_BOTTOM_MARGIN } from '../../src/theme';
-
-const TAB_BAR_CLEARANCE = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_MARGIN + spacing.sm;
+import { useTheme, spacing, radius, TAB_BAR_CLEARANCE } from '../../src/theme';
 
 const BUDGET_CENTS = Number(process.env.EXPO_PUBLIC_MONTHLY_BUDGET_CENTS ?? '8');
 const APPROX_CENTS_PER_WORKOUT = 0.6;
