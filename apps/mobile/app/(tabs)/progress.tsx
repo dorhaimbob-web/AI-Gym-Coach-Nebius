@@ -35,20 +35,20 @@ async function fetchExerciseSeries(planId: string): Promise<Record<string, numbe
     .eq('workout_sessions.status', 'completed');
   const rows = (data ?? []) as unknown as RawLog[];
 
-  const bySession = new Map<string, Map<string, { startedAt: string; maxWeight: number }>>();
+  const byExercise = new Map<string, Map<string, { startedAt: string; maxWeight: number }>>();
   for (const row of rows) {
     const startedAt = row.workout_sessions?.started_at;
     if (!startedAt) continue;
-    const perExercise = bySession.get(row.exercise_id) ?? new Map();
-    const existing = perExercise.get(row.session_id);
+    const perSession = byExercise.get(row.exercise_id) ?? new Map();
+    const existing = perSession.get(row.session_id);
     if (!existing || row.weight_kg > existing.maxWeight) {
-      perExercise.set(row.session_id, { startedAt, maxWeight: row.weight_kg });
+      perSession.set(row.session_id, { startedAt, maxWeight: row.weight_kg });
     }
-    bySession.set(row.exercise_id, perExercise);
+    byExercise.set(row.exercise_id, perSession);
   }
 
   const result: Record<string, number[]> = {};
-  for (const [exerciseId, sessions] of bySession) {
+  for (const [exerciseId, sessions] of byExercise) {
     result[exerciseId] = [...sessions.values()]
       .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
       .slice(-MAX_POINTS)
@@ -141,13 +141,20 @@ export default function Progress() {
       setSeries({});
       return;
     }
+    let current = true;
     (async () => {
-      const { data } = await supabase
-        .from('exercises').select('id, name, order_index')
-        .eq('plan_id', selectedPlanId).order('order_index');
+      const [{ data }, seriesData] = await Promise.all([
+        supabase.from('exercises').select('id, name, order_index')
+          .eq('plan_id', selectedPlanId).order('order_index'),
+        fetchExerciseSeries(selectedPlanId),
+      ]);
+      // A faster-resolving later tab switch may have already landed —
+      // don't let this stale response overwrite it.
+      if (!current) return;
       setExercises((data ?? []) as ExerciseRow[]);
-      setSeries(await fetchExerciseSeries(selectedPlanId));
+      setSeries(seriesData);
     })();
+    return () => { current = false; };
   }, [selectedPlanId]);
 
   async function importParse() {
