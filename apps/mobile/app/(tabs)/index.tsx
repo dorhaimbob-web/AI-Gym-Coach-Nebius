@@ -173,14 +173,20 @@ export default function Chat() {
               borderRadius: radius.bubble,
               padding: 12,
             }}>
-              <MarkdownText style={{
-                color: item.from === 'me' ? theme.onAccent : item.from === 'system' ? theme.inkSoft : theme.ink,
-                fontSize: typography.message.size,
-                lineHeight: typography.message.lineHeight,
-                textAlign: 'right',
-              }}>
-                {item.text}
-              </MarkdownText>
+              {(() => {
+                const messageStyle = {
+                  color: item.from === 'me' ? theme.onAccent : item.from === 'system' ? theme.inkSoft : theme.ink,
+                  fontSize: typography.message.size,
+                  lineHeight: typography.message.lineHeight,
+                  textAlign: 'right' as const,
+                };
+                // Only actual coach replies are LLM output — 'me' is the
+                // user's own raw text and 'system' is static app copy,
+                // neither needs (or should get) markdown parsing.
+                return item.from === 'coach'
+                  ? <MarkdownText style={messageStyle}>{item.text}</MarkdownText>
+                  : <Text style={messageStyle}>{item.text}</Text>;
+              })()}
             </View>
           </View>
         )}
