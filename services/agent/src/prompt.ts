@@ -93,3 +93,64 @@ export function buildTurnPrompt(
   );
   return lines.join("\n");
 }
+
+/**
+ * Free-text mid-workout turn (GYM-61/67): interpret what the user just
+ * said about the current exercise, decide whether it's a completed
+ * report (advance) or something else (renegotiation, a question, an
+ * issue), and — if advancing and another exercise follows — weave in its
+ * introduction using an already-computed (deterministic) target.
+ */
+export function buildConversationPrompt(
+  exercise: Exercise,
+  lastLogs: SetLog[],
+  notes: string[],
+  userMessage: string,
+  recentHistory: Array<{ from: "coach" | "me"; text: string }>,
+  nextExercise: Exercise | null,
+  nextTargets: Targets | null,
+  nextLastLogs: SetLog[],
+): string {
+  const lines: string[] = [
+    `Current exercise: ${exercise.name}`,
+    `Structure: ${exercise.sets} work sets, ${exercise.repRange} reps, rest ${exercise.restSec}s, intensity: ${exercise.intensity}.`,
+    "Last time:",
+    formatHistory(lastLogs),
+  ];
+  if (notes.length > 0) lines.push("", "Saved notes about this exercise:", ...notes.map((n) => `- ${n}`));
+  if (recentHistory.length > 0) {
+    lines.push("", "Recent conversation, most recent last (for context, e.g. an agreed target):");
+    for (const m of recentHistory) lines.push(`${m.from === "coach" ? "Coach" : "User"}: ${m.text}`);
+  }
+  lines.push(
+    "",
+    `The user just said: "${userMessage}"`,
+    "",
+    "Decide: does this report completed work sets for the current exercise (even partially), or is it something else (a question, a request to change the target, reporting pain, general chat)?",
+    "- If it reports completed sets: extract each set's weight (kg) and reps, in order, into loggedSets. If one weight is stated for the whole exercise, use it for every set. Set advance=true.",
+    "- Otherwise: set advance=false and loggedSets=[]. Respond directly to what the user said — if they're proposing a different weight/reps, acknowledge and confirm the new target for this same exercise; if they report pain, follow the safety rules; do not introduce a new exercise.",
+  );
+  if (nextExercise && nextTargets) {
+    lines.push(
+      "",
+      `If advance=true, weave in an introduction to the next exercise after acknowledging what was just logged: ${nextExercise.name}`,
+      `Structure: ${nextExercise.sets} work sets, ${nextExercise.repRange} reps, rest ${nextExercise.restSec}s, intensity: ${nextExercise.intensity}.`,
+      nextExercise.warmup ? `Warm-up: ${nextExercise.warmup}` : "No warm-up for this exercise.",
+      "Last time on this exercise:",
+      formatHistory(nextLastLogs),
+      nextTargets.reason === "baseline"
+        ? "This is the first session for this exercise: help the user find working weights, focus on technique."
+        : `Computed target for today (already validated, present it as the goal): ${nextTargets.suggestedWeightKg}kg, sets of ${nextTargets.targetReps?.join(", ")} reps.`,
+    );
+  } else if (!nextExercise) {
+    lines.push(
+      "",
+      "This is the LAST exercise in the plan. If advance=true, warmly wrap up the workout instead of introducing a new exercise — do not fabricate a summary of numbers, that is handled separately.",
+    );
+  }
+  lines.push(
+    "",
+    'Reply with ONLY valid JSON matching: {"message": string, "loggedSets": [{"weightKg": number, "reps": number}], "advance": boolean}. "message" is what the user reads — write it in your coaching voice per the rules and tone above, and always restate any numbers you record.',
+  );
+  return lines.join("\n");
+}

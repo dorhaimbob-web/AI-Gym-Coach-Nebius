@@ -3,7 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { agentDisabled } from "./config.js";
 import { runCoachingTurn } from "./graph.js";
-import { turnInputSchema } from "./schema.js";
+import { runConversationTurn } from "./converse.js";
+import { turnInputSchema, conversationTurnInputSchema } from "./schema.js";
 import { parsePlanText, parseSummaryText } from "./parse.js";
 
 const parsePlanInput = z.object({ text: z.string().min(10).max(20000) });
@@ -70,6 +71,40 @@ const server = createServer(async (req, res) => {
         return;
       }
       json(200, await runCoachingTurn(parsed.data));
+    } catch {
+      json(400, { error: "bad_request" });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/converse") {
+    if (agentDisabled()) {
+      json(503, { error: "agent_disabled" });
+      return;
+    }
+    if (!secretMatches(req.headers["x-agent-secret"])) {
+      json(401, { error: "unauthorized" });
+      return;
+    }
+    try {
+      const chunks: Buffer[] = [];
+      let size = 0;
+      for await (const chunk of req) {
+        size += (chunk as Buffer).length;
+        if (size > MAX_BODY_BYTES) {
+          json(413, { error: "body_too_large" });
+          return;
+        }
+        chunks.push(chunk as Buffer);
+      }
+      const parsed = conversationTurnInputSchema.safeParse(
+        JSON.parse(Buffer.concat(chunks).toString()),
+      );
+      if (!parsed.success) {
+        json(400, { error: "invalid_input" });
+        return;
+      }
+      json(200, await runConversationTurn(parsed.data));
     } catch {
       json(400, { error: "bad_request" });
     }
