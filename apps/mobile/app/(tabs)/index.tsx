@@ -8,6 +8,7 @@ import { supabase } from '../../src/lib/supabase';
 import { callFn, ApiError } from '../../src/lib/api';
 import { enqueueTurn, setPendingTurnHandlers, type TurnResult } from '../../src/lib/pendingTurn';
 import { Screen } from '../../src/components/Screen';
+import { MarkdownText } from '../../src/components/MarkdownText';
 import { useTheme, spacing, radius, typography, TAB_BAR_CLEARANCE } from '../../src/theme';
 
 interface Plan { id: string; name: string }
@@ -172,14 +173,14 @@ export default function Chat() {
               borderRadius: radius.bubble,
               padding: 12,
             }}>
-              <Text style={{
+              <MarkdownText style={{
                 color: item.from === 'me' ? theme.onAccent : item.from === 'system' ? theme.inkSoft : theme.ink,
                 fontSize: typography.message.size,
                 lineHeight: typography.message.lineHeight,
                 textAlign: 'right',
               }}>
                 {item.text}
-              </Text>
+              </MarkdownText>
             </View>
           </View>
         )}
