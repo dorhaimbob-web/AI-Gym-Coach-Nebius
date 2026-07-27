@@ -10,7 +10,9 @@ import { callFn } from '../../src/lib/api';
 import { DismissKeyboardView } from '../../src/components/DismissKeyboardView';
 import { LineChart } from '../../src/components/LineChart';
 import { Screen } from '../../src/components/Screen';
-import { useTheme, spacing, radius } from '../../src/theme';
+import { useTheme, spacing, radius, TAB_BAR_HEIGHT, TAB_BAR_BOTTOM_MARGIN } from '../../src/theme';
+
+const TAB_BAR_CLEARANCE = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_MARGIN + spacing.sm;
 
 interface SessionRow {
   id: string; started_at: string; source: string;
@@ -203,6 +205,7 @@ export default function Progress() {
       <FlatList
         data={sessions}
         keyExtractor={(s) => s.id}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
         ListHeaderComponent={
           <View>
             <Text style={{ color: theme.ink, fontSize: 20, fontWeight: '800', textAlign: 'right', marginBottom: spacing.md }}>
