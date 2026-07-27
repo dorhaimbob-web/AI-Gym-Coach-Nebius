@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, Keyboard, Modal, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
@@ -141,6 +141,7 @@ export default function Progress() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, SessionDetailExercise[]>>({});
   const [loadingDetailsId, setLoadingDetailsId] = useState<string | null>(null);
+  const detailsRequest = useRef<string | null>(null);
 
   async function toggleExpand(sessionId: string) {
     if (expandedId === sessionId) {
@@ -149,8 +150,12 @@ export default function Progress() {
     }
     setExpandedId(sessionId);
     if (details[sessionId]) return;
+    detailsRequest.current = sessionId;
     setLoadingDetailsId(sessionId);
     const result = await fetchSessionDetails(sessionId);
+    // A second tap while this was in flight already started its own
+    // fetch — only this session's own request may write the result.
+    if (detailsRequest.current !== sessionId) return;
     setDetails((d) => ({ ...d, [sessionId]: result }));
     setLoadingDetailsId(null);
   }
