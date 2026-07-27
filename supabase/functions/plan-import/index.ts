@@ -148,10 +148,16 @@ Deno.serve(async (req) => {
     if (mode === "add") {
       // nothing to archive
     } else if (mode === "edit") {
-      await db.from("training_plans")
+      const { error: archiveError } = await db.from("training_plans")
         .update({ status: "archived" })
         .eq("id", editPlanId!)
         .eq("user_id", user.id);
+      if (archiveError) {
+        // The new plan is already committed and valid — not rolling that
+        // back over a cleanup failure — but the old one silently staying
+        // active would leave the user with two plans of the same type.
+        console.error("edit-mode archive failed", { userId: user.id, editPlanId, error: archiveError.message });
+      }
     } else {
       await db.from("training_plans")
         .update({ status: "archived" })
