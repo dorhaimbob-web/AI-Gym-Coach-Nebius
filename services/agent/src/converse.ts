@@ -56,16 +56,16 @@ async function targetsNode(state: GraphState): Promise<Partial<GraphState>> {
 async function composeNode(state: GraphState): Promise<Partial<GraphState>> {
   const { input, nextTargets } = state;
   const systemPrompt = buildSystemPrompt(input.profile);
-  const turnPrompt = buildConversationPrompt(
-    input.exercise,
-    input.lastLogs,
-    input.notes,
-    input.userMessage,
-    input.recentHistory,
-    input.nextExercise,
-    nextTargets ?? null,
-    input.nextLastLogs,
-  );
+  const turnPrompt = buildConversationPrompt({
+    exercise: input.exercise,
+    lastLogs: input.lastLogs,
+    notes: input.notes,
+    userMessage: input.userMessage,
+    recentHistory: input.recentHistory,
+    nextExercise: input.nextExercise,
+    nextTargets: nextTargets ?? null,
+    nextLastLogs: input.nextLastLogs,
+  });
 
   const reply = await composeConversationTurn(systemPrompt, turnPrompt);
   if (reply) return { output: reply };

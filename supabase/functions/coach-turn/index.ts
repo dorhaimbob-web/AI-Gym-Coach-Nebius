@@ -84,8 +84,13 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!exercise) return json(404, { error: "exercise_not_found" });
 
-  const turn = await runConversationExerciseTurn(
-    db, user.id, session.id, session.plan_id, exercise, userMessage, cleanHistory,
-  );
+  const turn = await runConversationExerciseTurn(db, {
+    userId: user.id,
+    sessionId: session.id,
+    planId: session.plan_id,
+    exercise,
+    userMessage,
+    recentHistory: cleanHistory,
+  });
   return json(turn.status, turn.body);
 });

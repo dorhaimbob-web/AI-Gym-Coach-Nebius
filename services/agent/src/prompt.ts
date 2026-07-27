@@ -101,16 +101,20 @@ export function buildTurnPrompt(
  * issue), and — if advancing and another exercise follows — weave in its
  * introduction using an already-computed (deterministic) target.
  */
-export function buildConversationPrompt(
-  exercise: Exercise,
-  lastLogs: SetLog[],
-  notes: string[],
-  userMessage: string,
-  recentHistory: Array<{ from: "coach" | "me"; text: string }>,
-  nextExercise: Exercise | null,
-  nextTargets: Targets | null,
-  nextLastLogs: SetLog[],
-): string {
+export function buildConversationPrompt(params: {
+  exercise: Exercise;
+  lastLogs: SetLog[];
+  notes: string[];
+  userMessage: string;
+  recentHistory: Array<{ from: "coach" | "me"; text: string }>;
+  nextExercise: Exercise | null;
+  nextTargets: Targets | null;
+  nextLastLogs: SetLog[];
+}): string {
+  const {
+    exercise, lastLogs, notes, userMessage, recentHistory,
+    nextExercise, nextTargets, nextLastLogs,
+  } = params;
   const lines: string[] = [
     `Current exercise: ${exercise.name}`,
     `Structure: ${exercise.sets} work sets, ${exercise.repRange} reps, rest ${exercise.restSec}s, intensity: ${exercise.intensity}.`,
@@ -126,9 +130,12 @@ export function buildConversationPrompt(
     "",
     `The user just said: "${userMessage}"`,
     "",
-    "Decide: does this report completed work sets for the current exercise (even partially), or is it something else (a question, a request to change the target, reporting pain, general chat)?",
-    "- If it reports completed sets: extract each set's weight (kg) and reps, in order, into loggedSets. If one weight is stated for the whole exercise, use it for every set. Set advance=true.",
-    "- Otherwise: set advance=false and loggedSets=[]. Respond directly to what the user said — if they're proposing a different weight/reps, acknowledge and confirm the new target for this same exercise; if they report pain, follow the safety rules; do not introduce a new exercise.",
+    `This exercise has ${exercise.sets} work sets. Work out how many of them are now accounted for, combining this message with anything already reported earlier in the recent conversation above (the user may report sets across more than one message) — then decide:`,
+    `- If ALL ${exercise.sets} work sets are now accounted for: extract every set's weight (kg) and reps, in order, into loggedSets (include sets reported in earlier messages too, not just this one). If one weight was stated for the whole exercise, use it for every set. Set advance=true.`,
+    "- If the message contains no numbers at all but clearly confirms finishing what was just discussed (e.g. \"done\", \"I did it\", \"finished\") AND the recent conversation already establishes a specific weight/rep target for every set (either the suggested target, or one the user negotiated), log that agreed target as loggedSets and set advance=true.",
+    `- If only SOME of the ${exercise.sets} sets are accounted for and the user has not indicated they are stopping early: set advance=false and loggedSets=[]. Acknowledge what came in so far and ask for the remaining sets — do not advance on a partial report.`,
+    "- If the user explicitly moves on early (e.g. \"let's skip the rest\", \"that's enough for this one\") with fewer than the full set count: log whatever sets were reported (may be fewer than the full count, or none) and set advance=true.",
+    "- Otherwise (a question, a request to change the target, reporting pain, general chat, nothing about performance): set advance=false and loggedSets=[]. Respond directly to what the user said — if they're proposing a different weight/reps, acknowledge and confirm the new target for this same exercise; if they report pain, follow the safety rules; do not introduce a new exercise.",
   );
   if (nextExercise && nextTargets) {
     lines.push(

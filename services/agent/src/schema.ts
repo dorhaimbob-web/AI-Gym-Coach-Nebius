@@ -83,7 +83,7 @@ export const conversationReplySchema = z.object({
   loggedSets: z
     .array(
       z.object({
-        weightKg: z.number().min(0),
+        weightKg: z.number().min(0).max(500),
         reps: z.number().int().min(0).max(200),
       }),
     )

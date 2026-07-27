@@ -5,17 +5,12 @@ import {
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../src/lib/supabase';
 import { callFn, ApiError } from '../../src/lib/api';
+import { enqueueTurn, setPendingTurnHandlers, type TurnResult } from '../../src/lib/pendingTurn';
 import { useTheme, spacing, radius, typography } from '../../src/theme';
 
 interface Plan { id: string; name: string }
 interface Exercise { id: string; name: string; sets: number; order_index: number }
 interface Msg { id: string; from: 'coach' | 'me' | 'system'; text: string }
-interface TurnResult {
-  message: string;
-  advance: boolean;
-  nextExerciseId: string | null;
-  sessionComplete: boolean;
-}
 
 /** The core screen: free-text chat, single complete coach messages (GYM-28/61/67). */
 export default function Chat() {
@@ -47,6 +42,21 @@ export default function Chat() {
     else push('system', t('coachUnavailable'));
   }
 
+  function handleTurnResult(res: TurnResult) {
+    push('coach', res.message);
+    if (res.advance) {
+      if (res.sessionComplete) void finish();
+      else setCurrentExerciseId(res.nextExerciseId);
+    }
+  }
+
+  // A message that failed to send over the network retries automatically
+  // on reconnect (pendingTurn.ts) — wire its outcome back into this chat.
+  useEffect(() => {
+    setPendingTurnHandlers({ onDelivered: handleTurnResult, onFailed: coachError });
+    return () => setPendingTurnHandlers(null);
+  }, [sessionId, currentExerciseId]);
+
   async function start(plan: Plan) {
     setBusy(true);
     push('me', plan.name);
@@ -74,27 +84,25 @@ export default function Chat() {
     setDraft('');
     push('me', text);
     setBusy(true);
+    // Last few turns, so the coach has short-term memory of this
+    // exchange (e.g. a target it just agreed to change).
+    const recentHistory = msgs
+      .filter((m) => m.from !== 'system')
+      .slice(-10)
+      .map((m) => ({ from: m.from as 'coach' | 'me', text: m.text }));
+    const turn = { sessionId, exerciseId: currentExerciseId, userMessage: text, recentHistory };
     try {
-      // Last few turns, so the coach has short-term memory of this
-      // exchange (e.g. a target it just agreed to change).
-      const recentHistory = msgs
-        .filter((m) => m.from !== 'system')
-        .slice(-10)
-        .map((m) => ({ from: m.from as 'coach' | 'me', text: m.text }));
-      const res = await callFn<TurnResult>('coach-turn', {
-        sessionId, exerciseId: currentExerciseId, userMessage: text, recentHistory,
-      });
-      push('coach', res.message);
-      if (res.advance) {
-        if (res.sessionComplete) {
-          await finish();
-        } else {
-          setCurrentExerciseId(res.nextExerciseId);
-        }
-      }
+      handleTurnResult(await callFn<TurnResult>('coach-turn', turn));
     } catch (e) {
-      setDraft(text); // let the user retry the same message
-      coachError(e);
+      if (e instanceof ApiError) {
+        setDraft(text); // server rejected it outright — let the user retry
+        coachError(e);
+      } else {
+        // A network-level failure, not a server rejection — queue it
+        // instead of losing the report; pendingTurn.ts retries on reconnect.
+        await enqueueTurn(turn);
+        push('system', t('queuedOffline'));
+      }
     } finally {
       setBusy(false);
     }

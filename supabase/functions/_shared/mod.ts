@@ -226,13 +226,17 @@ export async function notesForExercise(
  */
 export async function runConversationExerciseTurn(
   db: SupabaseClient,
-  userId: string,
-  sessionId: string,
-  planId: string,
-  exercise: Record<string, unknown>,
-  userMessage: string,
-  recentHistory: Array<{ from: "coach" | "me"; text: string }>,
+  params: {
+    userId: string;
+    sessionId: string;
+    planId: string;
+    exercise: Record<string, unknown>;
+    userMessage: string;
+    recentHistory: Array<{ from: "coach" | "me"; text: string }>;
+  },
 ): Promise<{ status: number; body: Record<string, unknown> }> {
+  const { userId, sessionId, planId, exercise, userMessage, recentHistory } = params;
+
   const { data: profileRow } = await db
     .from("coach_profiles")
     .select("*")
