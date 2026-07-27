@@ -7,7 +7,7 @@ WORKDIR /app
 # during the build (default $HOME-scoped cache would force a re-download
 # on every container boot once we drop to a non-root USER below).
 ENV COREPACK_HOME=/opt/corepack
-RUN mkdir -p /opt/corepack && chmod -R 777 /opt/corepack \
+RUN mkdir -p /opt/corepack && chmod -R 755 /opt/corepack \
   && corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./

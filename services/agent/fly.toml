@@ -13,7 +13,7 @@ primary_region = "fra"
   [[http_service.checks]]
     interval = "15s"
     timeout = "5s"
-    grace_period = "10s"
+    grace_period = "30s"
     method = "get"
     path = "/healthz"
 
