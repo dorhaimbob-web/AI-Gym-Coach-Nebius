@@ -69,6 +69,7 @@ export default function SignIn() {
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: spacing.lg }}
       >
       <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>

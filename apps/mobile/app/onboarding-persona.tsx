@@ -63,6 +63,7 @@ export default function OnboardingPersona() {
       style={{ flex: 1, backgroundColor: theme.bg }}
       contentContainerStyle={{ padding: spacing.lg }}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
     >
       <Text style={{ color: theme.inkSoft, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>
         {t('personaStep')}

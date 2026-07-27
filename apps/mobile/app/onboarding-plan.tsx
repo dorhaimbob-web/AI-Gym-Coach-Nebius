@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import {
-  Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text,
-  TextInput, TouchableWithoutFeedback, View,
-} from 'react-native';
+import { Alert, Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { callFn } from '../src/lib/api';
+import { DismissKeyboardView } from '../src/components/DismissKeyboardView';
 import { useTheme, spacing, radius } from '../src/theme';
 
 interface ParsedExercise {
@@ -47,12 +45,7 @@ export default function OnboardingPlan() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: theme.bg }}
-    >
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-    <View style={{ flex: 1, padding: spacing.lg }}>
+    <DismissKeyboardView style={{ backgroundColor: theme.bg, padding: spacing.lg }}>
       <Text style={{ color: theme.inkSoft, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>
         {t('planStep')}
       </Text>
@@ -125,8 +118,6 @@ export default function OnboardingPlan() {
           </Pressable>
         </>
       )}
-    </View>
-    </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </DismissKeyboardView>
   );
 }
