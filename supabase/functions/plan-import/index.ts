@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     if (typeof body.text !== "string" || body.text.length < 10 || body.text.length > 20000) {
       return json(400, { error: "invalid_input" });
     }
-        const res = await callAgent({ text: body.text }, "/parse-plan");
+    const res = await callAgent({ text: body.text }, "/parse-plan");
     if (!res.ok) {
       return json(res.status === 422 ? 422 : 503, {
         error: res.status === 422 ? "unparseable" : "parser_unavailable",

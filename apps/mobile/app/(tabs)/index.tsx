@@ -47,8 +47,9 @@ export default function Chat() {
   async function saveNote(note: string, exerciseId: string | null) {
     try {
       await callFn('coach-note', { note, exerciseId: exerciseId ?? undefined });
-    } catch {
-      Alert.alert(t('noteSaveFailed'));
+    } catch (e) {
+      // Same distinction as coachError: a server rejection vs. no connection at all.
+      Alert.alert(e instanceof ApiError ? t('noteSaveFailed') : t('coachUnavailable'));
     }
   }
 
@@ -177,7 +178,11 @@ export default function Chat() {
             <Text style={{ color: theme.inkSoft, fontSize: 12, textAlign: 'right' }}>
               {currentEx.name} · {currentExPos}/{exercises.length}
             </Text>
-            <Pressable onPress={() => promptForNote(currentEx.id)} hitSlop={8}>
+            <Pressable
+              onPress={() => promptForNote(currentEx.id)}
+              hitSlop={8}
+              accessibilityLabel={t('addExerciseNoteTitle')}
+            >
               <Text style={{ fontSize: 13 }}>📝</Text>
             </Pressable>
           </View>
