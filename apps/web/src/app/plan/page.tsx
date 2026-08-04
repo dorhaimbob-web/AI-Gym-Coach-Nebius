@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import posthog from "posthog-js";
 import { palette } from "@gymcoach/shared";
 import { supabase, callFn } from "../../lib/supabase";
 
@@ -22,6 +24,7 @@ export default function PlanPage() {
   const [preview, setPreview] = useState<unknown[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const identifiedUserId = useRef<string | null>(null);
 
   async function loadPlans() {
     const { data } = await supabase
@@ -31,22 +34,47 @@ export default function PlanPage() {
     setPlans((data ?? []) as unknown as Plan[]);
   }
 
+  function synchronizeSession(currentSession: Session | null, resetOnSignOut = false) {
+    setSession(!!currentSession);
+
+    if (currentSession) {
+      const { user } = currentSession;
+      if (identifiedUserId.current !== user.id) {
+        if (identifiedUserId.current) posthog.reset();
+        posthog.identify(user.id, user.email ? { email: user.email } : {});
+        identifiedUserId.current = user.id;
+      }
+      void loadPlans();
+    } else if (resetOnSignOut && identifiedUserId.current) {
+      posthog.reset();
+      identifiedUserId.current = null;
+      setPlans([]);
+    }
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(!!data.session);
-      if (data.session) loadPlans();
+    void supabase.auth.getSession().then(({ data }) => {
+      synchronizeSession(data.session);
     });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      synchronizeSession(currentSession, event === "SIGNED_OUT");
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   async function signIn() {
     setBusy(true);
     setError("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) setError("Sign-in failed — check email and password.");
     else {
-      setSession(true);
-      loadPlans();
+      synchronizeSession(data.session);
+      posthog.capture("user_signed_in");
     }
   }
 
@@ -56,6 +84,9 @@ export default function PlanPage() {
     try {
       const res = await callFn<{ plans: unknown[] }>("plan-import", { action: "parse", text: pasteText });
       setPreview(res.plans);
+      posthog.capture("training_plan_parsed", {
+        parsed_plan_count: res.plans.length,
+      });
     } catch {
       setError("Could not parse that text — clean it up and try again.");
     } finally {
@@ -67,6 +98,9 @@ export default function PlanPage() {
     setBusy(true);
     try {
       await callFn("plan-import", { action: "commit", plans: preview });
+      posthog.capture("training_plan_replaced", {
+        replacement_plan_count: preview?.length ?? 0,
+      });
       setPreview(null);
       setPasteText("");
       await loadPlans();
