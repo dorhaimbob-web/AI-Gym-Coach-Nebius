@@ -136,9 +136,9 @@ The **Coach assistant** is a new tab in the Notch app:
   10 idle minutes and deleted with their account. When the sandboxes that fit
   on our VM are all busy, a message waits its turn — users never share one.
 - **Nemotron on Nebius Token Factory** for both model calls. **Nemotron Super**
-  answers every message and check-in, driving Hermes' tool calls with thinking
-  off — a person is waiting, and a reasoning model can spend its whole budget
-  thinking and answer with nothing. **Nemotron Ultra** runs the nightly memory
+  answers every message and check-in, driving Hermes' tool calls with a little
+  thinking (`reasoning_effort: "low"`): with none, a turn after an earlier
+  exchange called the tool it needed in 6 of 16 tries; with low, in 16 of 16. **Nemotron Ultra** runs the nightly memory
   job with thinking on and a JSON schema; every operation it proposes is
   validated, and the facts' scores are computed in code. Daily spend ceilings
   in our code bound what either can cost.
@@ -172,8 +172,10 @@ The **Coach assistant** is a new tab in the Notch app:
   as sharing.
 - **Reasoning models and tool calls.** A reasoning model can spend its token
   budget thinking and return empty content, which a tool loop reads as
-  "nothing to say". We turned thinking off where tools are called, test for
-  that failure before any wiring, and make our client fail loudly on it.
+  "nothing to say" — yet with thinking off, the model skipped tools it needed
+  and promised or invented results instead. We settled on a little thinking
+  (`low`) for interactive turns, test for both failures, and make our client
+  fail loudly on empty content.
 - **Memory the user controls.** Deleting a fact has to really delete it. That
   ruled out letting the agent keep its own profile of the user, and made our
   facts — visible and deletable — the only memory about the person.
@@ -364,14 +366,14 @@ the lines about Token Factory and Nemotron:
 
 | Time | Shot | Voiceover |
 |---|---|---|
-| 0:00–0:15 | Notch's workout screen, then the Assistant tab | Notch is a strength coach on the App Store. For this hackathon we gave every lifter their own always-on coach — one that remembers them, acts for them, and keeps what it knows about them private. |
+| 0:00–0:15 | The home screen with both apps side by side: Notch from the App Store and Notch Coach from TestFlight. Notch's workout screen, then Notch Coach's Assistant tab | Notch is a strength coach on the App Store: it runs your workout set by set. For this hackathon we built Notch Coach beside it — every lifter gets their own always-on coach that remembers them, acts for them, and keeps what it knows about them private. |
 | 0:15–0:45 | *What the coach remembers*: the knee, the schedule. Then ask: "I've only got 40 minutes on Thursday — what should I cut?" The reply works around the knee | It remembers you across sessions. Every night, NVIDIA Nemotron Ultra on Nebius Token Factory reads the day's chats and workouts and distils short facts. The scoring is in code, not in the model, and every fact is yours to see — and to delete. |
-| 0:45–1:15 | "Make my bench press 4 sets of 6 this week." The reply states the change; the Workout tab shows it. "Undo that." | It acts for you. Nemotron Super drives the agent's tool calls, with thinking off so answers come fast. It can change an exercise's sets, reps, rest or intensity — never the movement — it says exactly what it changed, and anything can be undone for a day. |
+| 0:45–1:15 | "Make my bench press 4 sets of 6 this week." The reply states the change; the Workout tab shows it. "Undo that." | It acts for you. Nemotron Super drives the agent's tool calls, thinking just a little first, so it reliably uses the tools instead of guessing. It can change an exercise's sets, reps, rest or intensity — never the movement — it says exactly what it changed, and anything can be undone for a day. |
 | 1:15–1:35 | "Which vegetarian foods have 30 grams of protein?" Tap a source | It looks things up with Tavily and shows where each answer came from — and its rules keep anything personal out of the search. |
 | 1:35–1:55 | The morning notification on the lock screen, opened | And it doesn't wait to be asked: each morning it checks in about today's workout — or stays quiet when there's nothing useful to say. |
 | 1:55–2:30 | The architecture diagram; then the VPS terminal listing one sandbox per user | Under the hood, every user has their own Hermes Agent, in their own NVIDIA OpenShell sandbox, on a Nebius VM. The agent never sees an API key: OpenShell adds the Token Factory key only on requests to Token Factory. When the machine is full, people wait their turn — no one ever shares a sandbox. |
 | 2:30–2:50 | The repository README, "What we built, and what we build on" | OpenShell, Hermes Agent and NemoClaw are the runtime. The relay, the sandbox manager, the tools, the memory pipeline and the app are ours — and every Token Factory call has a daily spending ceiling. |
-| 2:50–2:58 | The Assistant tab | Notch: a coach that knows you, and works for you. |
+| 2:50–2:58 | Notch Coach's Assistant tab | Notch Coach: a coach that knows you, and works for you. |
 
 After recording: check the length (under 3:00 with the title card), captions
 on, visibility **public**, and the link in Devpost and the README.
@@ -385,8 +387,8 @@ Every week from 2026-10-30 to 2026-12-15, one owner per week ⟨names⟩:
 - [ ] A judge-style run on the team demo account: sign in, one message with a
       reply, the memory screen opens.
 - [ ] The TestFlight build is still valid: builds expire 90 days after upload,
-      so a build uploaded by 2026-10-16 lasts past 2026-12-15 — a newer upload
-      restarts the clock.
+      Notch Coach's first build goes up on 2026-10-20 and lasts to about
+      2027-01-18, past judging — a newer upload restarts the clock.
 - [ ] Credits and spend: the Monday check in [`budget-runbook.md`](./budget-runbook.md), both accounts.
 - [ ] Prod didn't run into its daily ceiling, which stops every judge's coach
       until 00:00 UTC. The health check alerts while it lasts; days that came
